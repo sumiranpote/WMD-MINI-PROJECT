@@ -8,35 +8,59 @@ import {
 } from '../services/api';
 import { useAuth } from './AuthContext';
 
+const DEFAULT_TASKS = [
+  { id: 't1', title: 'Collect official venue walkie-talkie & badge', status: 'Completed', priority: 'High', due: '09:00 AM' },
+  { id: 't2', title: 'Verify perimeter crowd flow and barricade checks', status: 'In Progress', priority: 'Critical', due: '11:00 AM' },
+  { id: 't3', title: 'Conduct VIP green room welcoming with Hosting Lead', status: 'Pending', priority: 'High', due: '01:30 PM' },
+  { id: 't4', title: 'Submit afternoon shift attendance and handover report', status: 'Pending', priority: 'Medium', due: '05:00 PM' }
+];
+
 const FestivalContext = createContext(null);
 
 export const FestivalProvider = ({ children }) => {
-  const { user, token } = useAuth();
+  const { user } = useAuth();
+
   const [schedule, setSchedule] = useState(() => {
-    const saved = localStorage.getItem('eventsphere_schedule');
-    return saved ? JSON.parse(saved) : INITIAL_SCHEDULE;
+    try {
+      const saved = localStorage.getItem('eventsphere_schedule');
+      return saved && saved !== 'undefined' && saved !== 'null' ? JSON.parse(saved) : INITIAL_SCHEDULE;
+    } catch (e) {
+      return INITIAL_SCHEDULE;
+    }
   });
+
   const [teams, setTeams] = useState(TEAMS_DATA);
-  const [allUsers, setAllUsers] = useState(() => getStoredRoster());
+
+  const [allUsers, setAllUsers] = useState(() => {
+    try {
+      return getStoredRoster();
+    } catch (e) {
+      return [];
+    }
+  });
+
   const [loadingUsers, setLoadingUsers] = useState(false);
 
   // Volunteer Task Checklist
   const [tasks, setTasks] = useState(() => {
-    const saved = localStorage.getItem('eventsphere_tasks');
-    return saved ? JSON.parse(saved) : [
-      { id: 't1', title: 'Collect official venue walkie-talkie & badge', status: 'Completed', priority: 'High', due: '09:00 AM' },
-      { id: 't2', title: 'Verify perimeter crowd flow and barricade checks', status: 'In Progress', priority: 'Critical', due: '11:00 AM' },
-      { id: 't3', title: 'Conduct VIP green room welcoming with Hosting Lead', status: 'Pending', priority: 'High', due: '01:30 PM' },
-      { id: 't4', title: 'Submit afternoon shift attendance and handover report', status: 'Pending', priority: 'Medium', due: '05:00 PM' }
-    ];
+    try {
+      const saved = localStorage.getItem('eventsphere_tasks');
+      return saved && saved !== 'undefined' && saved !== 'null' ? JSON.parse(saved) : DEFAULT_TASKS;
+    } catch (e) {
+      return DEFAULT_TASKS;
+    }
   });
 
   useEffect(() => {
-    localStorage.setItem('eventsphere_schedule', JSON.stringify(schedule));
+    try {
+      localStorage.setItem('eventsphere_schedule', JSON.stringify(schedule));
+    } catch (e) {}
   }, [schedule]);
 
   useEffect(() => {
-    localStorage.setItem('eventsphere_tasks', JSON.stringify(tasks));
+    try {
+      localStorage.setItem('eventsphere_tasks', JSON.stringify(tasks));
+    } catch (e) {}
   }, [tasks]);
 
   // Load latest users roster when Admin accesses the app
@@ -44,10 +68,14 @@ export const FestivalProvider = ({ children }) => {
     setLoadingUsers(true);
     try {
       const roster = await fetchAllPersonnel();
-      setAllUsers(roster);
+      if (Array.isArray(roster) && roster.length > 0) {
+        setAllUsers(roster);
+      }
     } catch (err) {
       console.error('Failed to load users roster:', err);
-      setAllUsers(getStoredRoster());
+      try {
+        setAllUsers(getStoredRoster());
+      } catch (e) {}
     } finally {
       setLoadingUsers(false);
     }

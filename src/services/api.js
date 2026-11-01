@@ -55,23 +55,29 @@ export function generateClientJWT(payload) {
 
 // Local storage roster persistence (ensures changes survive page refresh on cloud deployment)
 export function getStoredRoster() {
-  const saved = localStorage.getItem('eventsphere_users_roster');
-  if (saved) {
-    try {
+  try {
+    const saved = localStorage.getItem('eventsphere_users_roster');
+    if (saved) {
       const parsed = JSON.parse(saved);
       if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-    } catch (e) {
-      console.warn('Error parsing cached roster', e);
     }
+  } catch (e) {
+    console.warn('Error parsing cached roster', e);
   }
   // Initialize from SEED_USERS
   const initial = Object.values(SEED_USERS);
-  localStorage.setItem('eventsphere_users_roster', JSON.stringify(initial));
+  try {
+    localStorage.setItem('eventsphere_users_roster', JSON.stringify(initial));
+  } catch (e) {}
   return initial;
 }
 
 export function saveStoredRoster(roster) {
-  localStorage.setItem('eventsphere_users_roster', JSON.stringify(roster));
+  try {
+    localStorage.setItem('eventsphere_users_roster', JSON.stringify(roster));
+  } catch (e) {
+    console.warn('Failed to save roster to localStorage:', e);
+  }
 }
 
 // 1. Resilient Login (Tries Flask API first, falls back to Seed Database for Render)

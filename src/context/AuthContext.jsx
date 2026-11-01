@@ -5,24 +5,40 @@ const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(() => {
-    const saved = localStorage.getItem('eventsphere_user');
-    return saved ? JSON.parse(saved) : null;
+    try {
+      const saved = localStorage.getItem('eventsphere_user');
+      return saved && saved !== 'undefined' && saved !== 'null' ? JSON.parse(saved) : null;
+    } catch (e) {
+      console.warn('Failed reading eventsphere_user:', e);
+      return null;
+    }
   });
-  const [token, setToken] = useState(() => localStorage.getItem('eventsphere_token') || null);
+
+  const [token, setToken] = useState(() => {
+    try {
+      const saved = localStorage.getItem('eventsphere_token');
+      return saved && saved !== 'undefined' && saved !== 'null' ? saved : null;
+    } catch (e) {
+      return null;
+    }
+  });
+
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (token && user) {
-      // Background verify profile with backend if online, but don't log out if backend is offline
+      // Background verify profile with backend if online, but keep state if backend is offline
       flaskApi.get('/user/profile')
         .then((res) => {
           if (res.data) {
             setUser(res.data);
-            localStorage.setItem('eventsphere_user', JSON.stringify(res.data));
+            try {
+              localStorage.setItem('eventsphere_user', JSON.stringify(res.data));
+            } catch (e) {}
           }
         })
         .catch(() => {
-          // Keep existing authenticated state on static deployment
+          // Graceful fallback: maintain client authentication on static cloud deployment
         });
     }
   }, [token]);
@@ -34,8 +50,13 @@ export const AuthProvider = ({ children }) => {
       
       setToken(result.token);
       setUser(result.user);
-      localStorage.setItem('eventsphere_token', result.token);
-      localStorage.setItem('eventsphere_user', JSON.stringify(result.user));
+
+      try {
+        localStorage.setItem('eventsphere_token', result.token);
+        localStorage.setItem('eventsphere_user', JSON.stringify(result.user));
+      } catch (storageErr) {
+        console.warn('localStorage write failed:', storageErr);
+      }
       
       return { success: true, user: result.user };
     } catch (err) {
@@ -49,8 +70,12 @@ export const AuthProvider = ({ children }) => {
   const logout = () => {
     setToken(null);
     setUser(null);
-    localStorage.removeItem('eventsphere_token');
-    localStorage.removeItem('eventsphere_user');
+    try {
+      localStorage.removeItem('eventsphere_token');
+      localStorage.removeItem('eventsphere_user');
+    } catch (e) {
+      console.warn('localStorage removal failed:', e);
+    }
   };
 
   const getPortalRoute = (role = user?.role) => {
