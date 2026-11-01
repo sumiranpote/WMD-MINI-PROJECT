@@ -3,8 +3,8 @@ node_modules/
 .pnp
 .pnp.js
 
-# Production build
-dist/
+# Production build (uncommented to include dist in git per user request)
+# dist/
 dist-ssr/
 build/
 
