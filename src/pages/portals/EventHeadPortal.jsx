@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useFestival } from '../../context/FestivalContext';
-import { flaskApi } from '../../services/api';
+import { fetchTeamPersonnel } from '../../services/api';
 import { 
   Users, 
   MapPin, 
@@ -49,12 +49,12 @@ export const EventHeadPortal = () => {
   const [isEditingBulletin, setIsEditingBulletin] = useState(false);
   const [tempBulletin, setTempBulletin] = useState(bulletin);
 
-  // Fetch team members from Flask
+  // Fetch team members (works both online with Flask and on Render static host)
   useEffect(() => {
     setLoadingMembers(true);
-    flaskApi.get(`/volunteers?team_id=${myTeam.id}`)
-      .then((res) => {
-        setTeamMembers(res.data);
+    fetchTeamPersonnel(myTeam.id)
+      .then((data) => {
+        setTeamMembers(data || []);
       })
       .catch((err) => {
         console.error('Error fetching team members:', err);

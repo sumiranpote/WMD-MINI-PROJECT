@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { flaskApi } from '../services/api';
+import { authenticateUser, flaskApi } from '../services/api';
 
 const AuthContext = createContext(null);
 
@@ -12,15 +12,17 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (token && !user) {
-      // Re-fetch profile on mount if token exists
+    if (token && user) {
+      // Background verify profile with backend if online, but don't log out if backend is offline
       flaskApi.get('/user/profile')
         .then((res) => {
-          setUser(res.data);
-          localStorage.setItem('eventsphere_user', JSON.stringify(res.data));
+          if (res.data) {
+            setUser(res.data);
+            localStorage.setItem('eventsphere_user', JSON.stringify(res.data));
+          }
         })
         .catch(() => {
-          logout();
+          // Keep existing authenticated state on static deployment
         });
     }
   }, [token]);
@@ -28,17 +30,16 @@ export const AuthProvider = ({ children }) => {
   const login = async (username, password) => {
     setLoading(true);
     try {
-      const response = await flaskApi.post('/login', { username, password });
-      const { token: jwtToken, user: userProfile } = response.data;
+      const result = await authenticateUser(username, password);
       
-      setToken(jwtToken);
-      setUser(userProfile);
-      localStorage.setItem('eventsphere_token', jwtToken);
-      localStorage.setItem('eventsphere_user', JSON.stringify(userProfile));
+      setToken(result.token);
+      setUser(result.user);
+      localStorage.setItem('eventsphere_token', result.token);
+      localStorage.setItem('eventsphere_user', JSON.stringify(result.user));
       
-      return { success: true, user: userProfile };
+      return { success: true, user: result.user };
     } catch (err) {
-      const errorMsg = err.response?.data?.error || 'Invalid credentials. Please verify your username and password.';
+      const errorMsg = err.message || err.response?.data?.error || 'Invalid credentials. Please verify your username and password.';
       return { success: false, error: errorMsg };
     } finally {
       setLoading(false);
